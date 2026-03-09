@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>VoiceRoom — Голосовой чат</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;800&display=swap" rel="stylesheet">
+  <style>
+    /* ── Reset & Variables ─────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #0a0a0f;
+      --surface:   #111118;
+      --surface2:  #1a1a26;
+      --border:    #2a2a3a;
+      --accent:    #7c5cfc;
+      --accent2:   #c084fc;
+      --green:     #34d399;
+      --red:       #f87171;
+      --text:      #e8e8f0;
+      --muted:     #6b6b80;
+      --radius:    16px;
+    }
+
+    body {
+      font-family: 'Syne', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+
+    /* ── Animated background ───────────────────────────────── */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background:
+        radial-gradient(ellipse 60% 50% at 20% 30%, rgba(124,92,252,.12) 0%, transparent 60%),
+        radial-gradient(ellipse 50% 40% at 80% 70%, rgba(192,132,252,.08) 0%, transparent 60%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* ── Layout ────────────────────────────────────────────── */
+    .screen {
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      max-width: 480px;
+      padding: 0 16px;
+    }
+
+    .hidden { display: none !important; }
+
+    /* ── Card ──────────────────────────────────────────────── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 40px;
+      box-shadow: 0 0 60px rgba(124,92,252,.08);
+    }
+
+    /* ── Logo ──────────────────────────────────────────────── */
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 36px;
+    }
+
+    .logo-icon {
+      width: 44px; height: 44px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+    }
+
+    .logo-icon svg { width: 22px; height: 22px; stroke: #fff; fill: none; }
+
+    .logo-text {
+      font-size: 22px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+    }
+
+    .logo-text span { color: var(--accent2); }
+
+    .logo-subtitle {
+      font-family: 'Space Mono', monospace;
+      font-size: 11px;
+      color: var(--muted);
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      margin-top: 2px;
+    }
+
+    /* ── Form ──────────────────────────────────────────────── */
+    .form-group {
+      margin-bottom: 20px;
+    }
+
+    label {
+      display: block;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 8px;
+    }
+
+    .input-wrap {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+
+    input {
+      width: 100%;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      color: var(--text);
+      font-family: 'Space Mono', monospace;
+      font-size: 15px;
+      padding: 13px 48px 13px 16px;
+      outline: none;
+      transition: border-color .2s, box-shadow .2s;
+    }
+
+    input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(124,92,252,.15);
+    }
+
+    input::placeholder { color: var(--muted); font-size: 13px; }
+
+    .input-action {
+      position: absolute;
+      right: 10px;
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: var(--muted);
+      padding: 6px;
+      border-radius: 6px;
+      display: flex;
+      transition: color .2s, background .2s;
+    }
+
+    .input-action:hover { color: var(--accent2); background: rgba(124,92,252,.1); }
+    .input-action svg { width: 16px; height: 16px; }
+
+    /* ── Buttons ───────────────────────────────────────────── */
+    .btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      width: 100%;
+      padding: 15px;
+      border-radius: 12px;
+      border: none;
+      font-family: 'Syne', sans-serif;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all .2s;
+      letter-spacing: 0.3px;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--accent), #5b3fd4);
+      color: #fff;
+      box-shadow: 0 4px 20px rgba(124,92,252,.3);
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 28px rgba(124,92,252,.45);
+    }
+
+    .btn-primary:active { transform: translateY(0); }
+
+    .btn svg { width: 18px; height: 18px; flex-shrink: 0; }
+
+    /* ── Divider ───────────────────────────────────────────── */
+    .divider {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin: 24px 0;
+      color: var(--muted);
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .divider::before, .divider::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--border);
+    }
+
+    /* ── Room screen ───────────────────────────────────────── */
+    .room-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 8px;
+    }
+
+    .room-header .logo { margin: 0; }
+
+    .room-info {
+      font-family: 'Space Mono', monospace;
+      font-size: 11px;
+      color: var(--accent2);
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+
+    .live-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(52,211,153,.12);
+      border: 1px solid rgba(52,211,153,.25);
+      color: var(--green);
+      font-family: 'Space Mono', monospace;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      padding: 4px 10px;
+      border-radius: 20px;
+      margin-bottom: 28px;
+    }
+
+    .live-badge::before {
+      content: '';
+      width: 6px; height: 6px;
+      background: var(--green);
+      border-radius: 50%;
+      animation: pulse 1.5s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: .5; transform: scale(1.3); }
+    }
+
+    /* ── Participants ───────────────────────────────────────── */
+    .participants-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 14px;
+    }
+
+    .participants-title {
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    #participant-count {
+      font-family: 'Space Mono', monospace;
+      font-size: 11px;
+      color: var(--accent2);
+    }
+
+    #participants-list {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+      gap: 14px;
+      min-height: 120px;
+      margin-bottom: 28px;
+    }
+
+    .participant {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      animation: fadeIn .3s ease;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: scale(.9); }
+      to   { opacity: 1; transform: scale(1);  }
+    }
+
+    .participant-avatar {
+      position: relative;
+      width: 60px; height: 60px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--surface2), var(--border));
+      border: 2px solid var(--border);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 18px;
+      font-weight: 800;
+      color: var(--accent2);
+      transition: border-color .3s;
+    }
+
+    .participant-avatar.speaking {
+      border-color: var(--green);
+      box-shadow: 0 0 0 3px rgba(52,211,153,.2);
+    }
+
+    .participant-name {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text);
+      text-align: center;
+      max-width: 80px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .participant-status {
+      color: var(--red);
+    }
+
+    .participant-status svg {
+      width: 14px; height: 14px;
+      stroke: currentColor; fill: none;
+    }
+
+    /* ── Sound wave ────────────────────────────────────────── */
+    .sound-wave {
+      position: absolute;
+      bottom: -2px; right: -2px;
+      display: none;
+      gap: 1.5px;
+      align-items: flex-end;
+      height: 14px;
+      background: var(--green);
+      border-radius: 8px;
+      padding: 3px 4px;
+    }
+
+    .participant-avatar.speaking .sound-wave { display: flex; }
+
+    .sound-wave span {
+      display: block;
+      width: 2px;
+      background: #fff;
+      border-radius: 2px;
+      animation: wave 0.8s ease-in-out infinite;
+    }
+
+    .sound-wave span:nth-child(1) { height: 4px; animation-delay: 0s; }
+    .sound-wave span:nth-child(2) { height: 8px; animation-delay: .15s; }
+    .sound-wave span:nth-child(3) { height: 4px; animation-delay: .3s; }
+
+    @keyframes wave {
+      0%, 100% { transform: scaleY(1); }
+      50% { transform: scaleY(2); }
+    }
+
+    /* ── Controls ──────────────────────────────────────────── */
+    .controls {
+      display: flex;
+      gap: 12px;
+    }
+
+    #mute-btn {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      padding: 14px 20px;
+      border-radius: 12px;
+      border: 1.5px solid var(--border);
+      background: var(--surface2);
+      color: var(--text);
+      font-family: 'Syne', sans-serif;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all .2s;
+    }
+
+    #mute-btn:hover { border-color: var(--accent); background: rgba(124,92,252,.08); }
+
+    #mute-btn.muted {
+      border-color: var(--red);
+      color: var(--red);
+      background: rgba(248,113,113,.08);
+    }
+
+    #mute-icon { width: 20px; height: 20px; flex-shrink: 0; }
+    #mute-icon svg { width: 20px; height: 20px; stroke: currentColor; fill: none; }
+
+    #leave-btn {
+      display: flex; align-items: center; justify-content: center;
+      padding: 14px 18px;
+      border-radius: 12px;
+      border: 1.5px solid rgba(248,113,113,.3);
+      background: rgba(248,113,113,.08);
+      color: var(--red);
+      cursor: pointer;
+      transition: all .2s;
+    }
+
+    #leave-btn:hover { background: rgba(248,113,113,.18); }
+    #leave-btn svg { width: 20px; height: 20px; stroke: currentColor; fill: none; }
+
+    /* ── Notification ──────────────────────────────────────── */
+    .notification {
+      position: fixed;
+      bottom: 28px;
+      left: 50%;
+      transform: translateX(-50%) translateY(80px);
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px 20px;
+      font-size: 13px;
+      font-weight: 600;
+      white-space: nowrap;
+      box-shadow: 0 8px 32px rgba(0,0,0,.4);
+      transition: transform .3s cubic-bezier(.34,1.56,.64,1), opacity .3s;
+      opacity: 0;
+      z-index: 100;
+    }
+
+    .notification.show {
+      transform: translateX(-50%) translateY(0);
+      opacity: 1;
+    }
+
+    .notification.error { border-color: var(--red); color: var(--red); }
+
+    /* ── Responsive ────────────────────────────────────────── */
+    @media (max-width: 500px) {
+      .card { padding: 28px 24px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ══ LOBBY ══════════════════════════════════════════════════ -->
+<div class="screen" id="lobby-screen">
+  <div class="card">
+    <div class="logo">
+      <div class="logo-icon">
+        <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"/>
+          <path d="M19 10v2a7 7 0 01-14 0v-2M12 19v4M8 23h8"/>
+        </svg>
+      </div>
+      <div>
+        <div class="logo-text">Voice<span>Room</span></div>
+        <div class="logo-subtitle">WebRTC · P2P</div>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label>Ваше имя</label>
+      <input id="user-name-input" type="text" placeholder="Иван Петров" maxlength="24" autocomplete="off" />
+    </div>
+
+    <div class="form-group">
+      <label>ID комнаты</label>
+      <div class="input-wrap">
+        <input id="room-id-input" type="text" placeholder="ABCD12" maxlength="12" autocomplete="off" />
+        <button class="input-action" id="generate-room-btn" title="Сгенерировать">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/>
+            <path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <div class="divider">или поделитесь ID</div>
+
+    <div class="form-group">
+      <div class="input-wrap">
+        <input id="room-id-input" type="text" placeholder="" style="display:none" />
+        <button class="btn" id="copy-room-btn" style="width:100%; background:var(--surface2); border:1.5px solid var(--border); color:var(--text); font-family:'Syne',sans-serif; font-size:13px; font-weight:600; padding:12px; border-radius:10px; cursor:pointer; gap:8px; display:flex; align-items:center; justify-content:center;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+            <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/>
+          </svg>
+          Скопировать ID комнаты
+        </button>
+      </div>
+    </div>
+
+    <button class="btn btn-primary" id="join-btn">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M15 3h4a2 2 0 012 2v14a2 2 0 01-2 2h-4M10 17l5-5-5-5M15 12H3"/>
+      </svg>
+      Войти в комнату
+    </button>
+  </div>
+</div>
+
+<!-- ══ ROOM ═══════════════════════════════════════════════════ -->
+<div class="screen hidden" id="room-screen">
+  <div class="card">
+    <div class="room-header">
+      <div class="logo">
+        <div class="logo-icon">
+          <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"/>
+            <path d="M19 10v2a7 7 0 01-14 0v-2M12 19v4M8 23h8"/>
+          </svg>
+        </div>
+        <div>
+          <div class="logo-text">Voice<span>Room</span></div>
+          <div class="room-info" id="room-label">Комната: —</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="live-badge">LIVE</div>
+
+    <div class="participants-header">
+      <div class="participants-title">Участники</div>
+      <div id="participant-count">0 участников</div>
+    </div>
+
+    <div id="participants-list"></div>
+
+    <div class="controls">
+      <button id="mute-btn">
+        <div id="mute-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"/>
+            <path d="M19 10v2a7 7 0 01-14 0v-2M12 19v4M8 23h8"/>
+          </svg>
+        </div>
+        <span id="mute-label">Выключить микрофон</span>
+      </button>
+
+      <button id="leave-btn" title="Покинуть комнату">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9"/>
+        </svg>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Уведомление ─────────────────────────────────── -->
+<div class="notification" id="notification"></div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script src="/js/app.js"></script>
+</body>
+</html>
