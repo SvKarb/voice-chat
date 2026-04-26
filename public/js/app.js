@@ -37,6 +37,36 @@ const state = {
   muted: false
 };
 
+const audioAnalysers = {}; // { peerId: AnalyserNode }
+
+function startVoiceDetection(peerId, stream) {
+  const audioCtx = new AudioContext();
+  const source = audioCtx.createMediaStreamSource(stream);
+  const analyser = audioCtx.createAnalyser();
+  analyser.fftSize = 512;
+  analyser.smoothingTimeConstant = 0.3;
+  source.connect(analyser);
+  audioAnalysers[peerId] = analyser;
+
+  const data = new Uint8Array(analyser.frequencyBinCount);
+  const THRESHOLD = 20; // Порог громкости (0-255)
+
+  function detect() {
+    analyser.getByteFrequencyData(data);
+    const volume = data.reduce((a, b) => a + b, 0) / data.length;
+    const avatar = document.getElementById(`avatar-${peerId}`);
+    if (avatar) {
+      if (volume > THRESHOLD) {
+        avatar.classList.add('speaking');
+      } else {
+        avatar.classList.remove('speaking');
+      }
+    }
+    requestAnimationFrame(detect);
+  }
+  detect();
+}
+
 // ── DOM-элементы ────────────────────────────────────────────────
 const screens = {
   lobby: document.getElementById('lobby-screen'),
@@ -167,6 +197,7 @@ function setRemoteAudio(peerId, stream) {
     document.body.appendChild(audio);
   }
   audio.srcObject = stream;
+  startVoiceDetection(peerId, stream);
 }
 
 // ── Участники UI ─────────────────────────────────────────────────
@@ -230,6 +261,7 @@ async function joinRoom() {
 
   try {
     state.localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+    startVoiceDetection('self', state.localStream);
   } catch (e) {
     showNotification('Нет доступа к микрофону', true);
     return;
