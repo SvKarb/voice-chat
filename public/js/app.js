@@ -1,4 +1,4 @@
-// ── Конфигурация WebRTC ─────────────────────────────────────────
+// Конфигурация WebRTC 
 const ICE_SERVERS = {
   iceServers: [
     {
@@ -27,17 +27,16 @@ const ICE_SERVERS = {
   ]
 };
 
-// ── Состояние приложения ────────────────────────────────────────
 const state = {
   socket: null,
   roomId: null,
   userName: null,
   localStream: null,
-  peers: {},       // { socketId: RTCPeerConnection }
+  peers: {},       
   muted: false
 };
 
-const audioAnalysers = {}; // { peerId: AnalyserNode }
+const audioAnalysers = {}; 
 
 function startVoiceDetection(peerId, stream) {
   const audioCtx = new AudioContext();
@@ -49,7 +48,7 @@ function startVoiceDetection(peerId, stream) {
   audioAnalysers[peerId] = analyser;
 
   const data = new Uint8Array(analyser.frequencyBinCount);
-  const THRESHOLD = 20; // Порог громкости (0-255)
+  const THRESHOLD = 20; 
 
   function detect() {
     analyser.getByteFrequencyData(data);
@@ -67,7 +66,6 @@ function startVoiceDetection(peerId, stream) {
   detect();
 }
 
-// ── DOM-элементы ────────────────────────────────────────────────
 const screens = {
   lobby: document.getElementById('lobby-screen'),
   room: document.getElementById('room-screen')
@@ -88,13 +86,12 @@ const ui = {
   copyBtn: document.getElementById('copy-room-btn')
 };
 
-// ── Инициализация Socket.io ──────────────────────────────────────
+// Socket.io 
 function initSocket() {
   state.socket = io();
   const s = state.socket;
 
   s.on('room-users', (users) => {
-    // Нас уже добавили — создаём оффер для каждого в комнате
     users.forEach(user => {
       addParticipant(user.id, user.name, user.muted);
       createOffer(user.id);
@@ -104,7 +101,6 @@ function initSocket() {
   s.on('user-joined', (user) => {
     showNotification(`${user.name} вошёл в комнату`);
     addParticipant(user.id, user.name, false);
-    // Новый пользователь сам инициирует — нам ждать
   });
 
   s.on('user-left', ({ userId, name }) => {
@@ -134,25 +130,22 @@ function initSocket() {
   });
 }
 
-// ── WebRTC ───────────────────────────────────────────────────────
+// WebRTC 
 
 function createPeerConnection(peerId) {
   const pc = new RTCPeerConnection(ICE_SERVERS);
   state.peers[peerId] = pc;
 
-  // Добавляем локальные треки
   state.localStream.getTracks().forEach(track => {
     pc.addTrack(track, state.localStream);
   });
 
-  // ICE кандидаты → сервер
   pc.onicecandidate = ({ candidate }) => {
     if (candidate) {
       state.socket.emit('ice-candidate', { targetId: peerId, candidate });
     }
   };
 
-  // Удалённый поток → <audio>
   pc.ontrack = ({ streams }) => {
     setRemoteAudio(peerId, streams[0]);
   };
@@ -200,7 +193,6 @@ function setRemoteAudio(peerId, stream) {
   startVoiceDetection(peerId, stream);
 }
 
-// ── Участники UI ─────────────────────────────────────────────────
 
 function addParticipant(id, name, muted) {
   if (document.getElementById(`participant-${id}`)) return;
@@ -248,8 +240,6 @@ function updateParticipantCount() {
     `${count} участник${count === 1 ? '' : count < 5 ? 'а' : 'ов'}`;
 }
 
-// ── Основные действия ─────────────────────────────────────────────
-
 async function joinRoom() {
   const roomId = ui.roomIdInput.value.trim();
   const userName = ui.userNameInput.value.trim();
@@ -273,17 +263,14 @@ async function joinRoom() {
   initSocket();
   state.socket.emit('join-room', { roomId, userName });
 
-  // Добавляем себя в список
   addParticipant('self', `${userName} (вы)`, false);
 
-  // Переключаем экран
   ui.roomLabel.textContent = `Комната: ${roomId}`;
   screens.lobby.classList.add('hidden');
   screens.room.classList.remove('hidden');
 }
 
 function leaveRoom() {
-  // Закрываем все соединения
   Object.keys(state.peers).forEach(removePeer);
 
   if (state.localStream) {
@@ -296,7 +283,6 @@ function leaveRoom() {
     state.socket = null;
   }
 
-  // Чистим UI
   ui.participantsList.innerHTML = '';
   screens.room.classList.add('hidden');
   screens.lobby.classList.remove('hidden');
@@ -336,15 +322,11 @@ function updateMuteButton() {
   }
 }
 
-// ── Уведомления ───────────────────────────────────────────────────
-
 function showNotification(text, isError = false) {
   ui.notification.textContent = text;
   ui.notification.className = `notification show${isError ? ' error' : ''}`;
   setTimeout(() => { ui.notification.className = 'notification'; }, 3000);
 }
-
-// ── Генерация ID комнаты ──────────────────────────────────────────
 
 function generateRoomId() {
   const id = Math.random().toString(36).substring(2, 8).toUpperCase();
@@ -357,8 +339,6 @@ function copyRoomId() {
   navigator.clipboard.writeText(val).then(() => showNotification('ID скопирован!'));
 }
 
-// ── Обработчики событий ───────────────────────────────────────────
-
 ui.joinBtn.addEventListener('click', joinRoom);
 ui.leaveBtn.addEventListener('click', leaveRoom);
 ui.muteBtn.addEventListener('click', toggleMute);
@@ -368,5 +348,4 @@ ui.copyBtn.addEventListener('click', copyRoomId);
 ui.userNameInput.addEventListener('keydown', e => { if (e.key === 'Enter') joinRoom(); });
 ui.roomIdInput.addEventListener('keydown', e => { if (e.key === 'Enter') joinRoom(); });
 
-// Генерируем ID по умолчанию
 generateRoomId();

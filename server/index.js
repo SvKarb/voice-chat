@@ -9,13 +9,11 @@ const io = new Server(server, {
   cors: { origin: '*' }
 });
 
-// Статические файлы клиента
+
 app.use(express.static(path.join(__dirname, '../public')));
 
-// Хранилище комнат: { roomId: { [socketId]: { id, name, muted } } }
 const rooms = {};
 
-// Утилита: получить список участников комнаты
 function getRoomUsers(roomId) {
   return rooms[roomId] ? Object.values(rooms[roomId]) : [];
 }
@@ -23,7 +21,6 @@ function getRoomUsers(roomId) {
 io.on('connection', (socket) => {
   console.log(`[+] Подключился: ${socket.id}`);
 
-  // Пользователь входит в комнату
   socket.on('join-room', ({ roomId, userName }) => {
     socket.join(roomId);
 
@@ -32,19 +29,14 @@ io.on('connection', (socket) => {
 
     console.log(`[Room ${roomId}] ${userName} вошёл`);
 
-    // Сообщаем новому пользователю список уже присутствующих
     const existingUsers = getRoomUsers(roomId).filter(u => u.id !== socket.id);
     socket.emit('room-users', existingUsers);
 
-    // Оповещаем остальных о новом участнике
     socket.to(roomId).emit('user-joined', rooms[roomId][socket.id]);
 
-    // Сохраняем данные для disconnect
     socket.data.roomId = roomId;
     socket.data.userName = userName;
   });
-
-  // ── WebRTC сигнализация ──────────────────────────────────────
 
   // Оффер (инициатор → принимающий)
   socket.on('offer', ({ targetId, offer }) => {
@@ -61,8 +53,6 @@ io.on('connection', (socket) => {
     io.to(targetId).emit('ice-candidate', { fromId: socket.id, candidate });
   });
 
-  // ── Управление микрофоном ─────────────────────────────────────
-
   socket.on('toggle-mute', ({ muted }) => {
     const { roomId } = socket.data;
     if (roomId && rooms[roomId] && rooms[roomId][socket.id]) {
@@ -70,8 +60,6 @@ io.on('connection', (socket) => {
       socket.to(roomId).emit('user-muted', { userId: socket.id, muted });
     }
   });
-
-  // ── Отключение ────────────────────────────────────────────────
 
   socket.on('disconnect', () => {
     const { roomId, userName } = socket.data;
